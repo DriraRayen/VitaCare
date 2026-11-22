@@ -2,12 +2,14 @@ package com.vitacare.vitacare.Model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import org.hibernate.annotations.DynamicUpdate;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity
+@DynamicUpdate
 @Table(name = "documents")
 @Getter
 @Setter
@@ -25,6 +27,11 @@ public class Document {
     private String fileType;
     private Long fileSize;
     private String filePath;
+
+    @Column(columnDefinition = "TEXT")
+    private String analysisSummary;
+    private String analysisLanguage;
+    private Boolean analysisExcerpt;
 
     @Column(name = "uploaded_at",
             updatable = false,

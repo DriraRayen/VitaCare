@@ -67,6 +67,8 @@ public class DTOMapper {
             user != null ? user.getLastName() : null
         );
 
+        dto.setAnalysed(document.getAnalysisSummary() != null);
+
         // Set tag information if available
         if (document.getTags() != null && !document.getTags().isEmpty()) {
             dto.setTagIds(document.getTags().stream()

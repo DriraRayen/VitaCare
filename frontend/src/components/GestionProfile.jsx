@@ -26,12 +26,14 @@ import {
    TeamOutlined,
 } from "@ant-design/icons";
 import moment from "moment";
+import { useLanguage } from "../utils/language";
 import { apiFetch, getEmailFromToken } from "../utils/api";
 
 const { Option } = Select;
 const { Text, Title } = Typography;
 
 export default function GestionProfile() {
+   const { t } = useLanguage();
    const [isEditing, setIsEditing] = useState(false);
    const [form] = Form.useForm();
    const [userData, setUserData] = useState(null);
@@ -139,7 +141,7 @@ export default function GestionProfile() {
             const email = getEmailFromToken();
             if (!email) throw new Error("User not authenticated");
 
-            const res = await apiFetch(`/api/profile/user/by-email/${email}`);
+            const res = await apiFetch(`/api/profile/user/by-email/${encodeURIComponent(email)}`);
             if (!res.ok) throw new Error("Unable to load Profilee");
 
             const user = await res.json();
@@ -395,7 +397,7 @@ export default function GestionProfile() {
             <div style={{ textAlign: "center", color: "#ffffff" }}>
                <Spin size="large" style={{ color: "#ffffff" }} />
                <div style={{ marginTop: "16px", fontSize: "18px" }}>
-                  Chargement de votre profil...
+                  {t("Chargement de votre profil...", "Loading your profile…", "جارٍ تحميل ملفك الشخصي…")}
                </div>
             </div>
          </div>
@@ -415,12 +417,12 @@ export default function GestionProfile() {
             }}
          >
             <Title level={3} style={{ color: "#ffffff" }}>
-               Aucune donnée disponible
+               {t("Aucune donnée disponible", "No data available", "لا توجد بيانات")}
             </Title>
             <Text
                style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "16px" }}
             >
-               Impossible de charger les informations du profil
+               {t("Impossible de charger les informations du profil", "Could not load your profile", "تعذر تحميل الملف الشخصي")}
             </Text>
          </Card>
       );
@@ -950,7 +952,7 @@ export default function GestionProfile() {
                                                 display: "block",
                                              }}
                                           >
-                                             Genre
+                                             {t("Genre", "Gender", "الجنس")}
                                           </Text>
                                           <Text
                                              style={{
@@ -989,7 +991,7 @@ export default function GestionProfile() {
                                                 display: "block",
                                              }}
                                           >
-                                             CONTACT
+                                             {t("CONTACT", "CONTACT", "التواصل")}
                                           </Text>
                                           <Text
                                              style={{
@@ -1188,7 +1190,7 @@ export default function GestionProfile() {
                                              fontWeight: 600,
                                           }}
                                        >
-                                          ALERTES MÉDICALES
+                                          {t("ALERTES MÉDICALES", "MEDICAL ALERTS", "التنبيهات الطبية")}
                                        </Text>
                                     </div>
                                     {userData.allergies && (
@@ -1290,7 +1292,7 @@ export default function GestionProfile() {
                                  "0 8px 24px rgba(255, 255, 255, 0.2)";
                            }}
                         >
-                           Modifier mon profil
+                           {t("Modifier mon profil", "Edit profile", "تعديل الملف الشخصي")}
                         </Button>
                      </div>
                   </div>
@@ -1764,7 +1766,7 @@ export default function GestionProfile() {
                                                 display: "block",
                                              }}
                                           >
-                                             Genre
+                                             {t("Genre", "Gender", "الجنس")}
                                           </Text>
                                           <Text
                                              style={{
@@ -1803,7 +1805,7 @@ export default function GestionProfile() {
                                                 display: "block",
                                              }}
                                           >
-                                             CONTACT
+                                             {t("CONTACT", "CONTACT", "التواصل")}
                                           </Text>
                                           <Text
                                              style={{
@@ -2002,7 +2004,7 @@ export default function GestionProfile() {
                                              fontWeight: 600,
                                           }}
                                        >
-                                          ALERTES MÉDICALES
+                                          {t("ALERTES MÉDICALES", "MEDICAL ALERTS", "التنبيهات الطبية")}
                                        </Text>
                                     </div>
                                     {userData.allergies && (
@@ -2084,10 +2086,10 @@ export default function GestionProfile() {
                               fontWeight: 700,
                            }}
                         >
-                           Informations personnelles
+                           {t("Informations personnelles", "Personal information", "المعلومات الشخصية")}
                         </Title>
                         <Text style={{ color: "#64748b", fontSize: "16px" }}>
-                           Mettez à jour vos informations de profil
+                           {t("Mettez à jour vos informations de profil", "Update your profile", "حدّث بيانات ملفك الشخصي")}
                         </Text>
                      </div>
 
@@ -2097,13 +2099,13 @@ export default function GestionProfile() {
                               <Form.Item
                                  label={
                                     <Text strong style={{ fontSize: "16px" }}>
-                                       Prénom
+                                       {t("Prénom", "First name", "الاسم")}
                                     </Text>
                                  }
                                  name="firstName"
                               >
                                  <Input
-                                    placeholder="Your Prénom"
+                                    placeholder={t("Prénom", "First name", "الاسم")}
                                     style={{
                                        borderRadius: "12px",
                                        border: "2px solid #f1f5f9",
@@ -2123,13 +2125,13 @@ export default function GestionProfile() {
                               <Form.Item
                                  label={
                                     <Text strong style={{ fontSize: "16px" }}>
-                                       Nom
+                                       {t("Nom", "Last name", "اسم العائلة")}
                                     </Text>
                                  }
                                  name="lastName"
                               >
                                  <Input
-                                    placeholder="Your Nom"
+                                    placeholder={t("Nom", "Last name", "اسم العائلة")}
                                     style={{
                                        borderRadius: "12px",
                                        border: "2px solid #f1f5f9",
@@ -2149,7 +2151,7 @@ export default function GestionProfile() {
                               <Form.Item
                                  label={
                                     <Text strong style={{ fontSize: "16px" }}>
-                                       Adresse e-mail
+                                       {t("Adresse e-mail", "Email address", "البريد الإلكتروني")}
                                     </Text>
                                  }
                                  name="email"
@@ -2178,7 +2180,7 @@ export default function GestionProfile() {
                               <Form.Item
                                  label={
                                     <Text strong style={{ fontSize: "16px" }}>
-                                       Numéro de téléphone
+                                       {t("Numéro de téléphone", "Phone number", "رقم الهاتف")}
                                     </Text>
                                  }
                                  name="phoneNumber"
@@ -2204,7 +2206,7 @@ export default function GestionProfile() {
                               <Form.Item
                                  label={
                                     <Text strong style={{ fontSize: "16px" }}>
-                                       Date de naissance
+                                       {t("Date de naissance", "Date of birth", "تاريخ الميلاد")}
                                     </Text>
                                  }
                                  name="dateOfBirth"
@@ -2231,21 +2233,21 @@ export default function GestionProfile() {
                               <Form.Item
                                  label={
                                     <Text strong style={{ fontSize: "16px" }}>
-                                       Genre
+                                       {t("Genre", "Gender", "الجنس")}
                                     </Text>
                                  }
                                  name="gender"
                               >
                                  <Select
-                                    placeholder="Sélectionnez votre genre"
+                                    placeholder={t("Choisir", "Select", "اختر")}
                                     style={{
                                        borderRadius: "12px",
                                        border: "2px solid #f1f5f9",
                                        fontSize: "16px",
                                     }}
                                  >
-                                    <Option value="MALE">Homme</Option>
-                                    <Option value="FEMALE">Femme</Option>
+                                    <Option value="MALE">{t("Homme", "Male", "ذكر")}</Option>
+                                    <Option value="FEMALE">{t("Femme", "Female", "أنثى")}</Option>
                                  </Select>
                               </Form.Item>
                            </Col>
@@ -2254,13 +2256,13 @@ export default function GestionProfile() {
                               <Form.Item
                                  label={
                                     <Text strong style={{ fontSize: "16px" }}>
-                                       Groupe sanguin
+                                       {t("Groupe sanguin", "Blood type", "فصيلة الدم")}
                                     </Text>
                                  }
                                  name="bloodType"
                               >
                                  <Select
-                                    placeholder="Select your Groupe sanguin"
+                                    placeholder={t("Choisir", "Select", "اختر")}
                                     style={{
                                        borderRadius: "12px",
                                        border: "2px solid #f1f5f9",
@@ -2283,7 +2285,7 @@ export default function GestionProfile() {
                               <Form.Item
                                  label={
                                     <Text strong style={{ fontSize: "16px" }}>
-                                       Poids (kg)
+                                       {t("Poids (kg)", "Weight (kg)", "الوزن (كغ)")}
                                     </Text>
                                  }
                                  name="weight"
@@ -2306,7 +2308,7 @@ export default function GestionProfile() {
                               <Form.Item
                                  label={
                                     <Text strong style={{ fontSize: "16px" }}>
-                                       Taille (cm)
+                                       {t("Taille (cm)", "Height (cm)", "الطول (سم)")}
                                     </Text>
                                  }
                                  name="height"
@@ -2329,13 +2331,13 @@ export default function GestionProfile() {
                               <Form.Item
                                  label={
                                     <Text strong style={{ fontSize: "16px" }}>
-                                       Allergies
+                                       {t("Allergies", "Allergies", "الحساسية")}
                                     </Text>
                                  }
                                  name="allergies"
                               >
                                  <Input.TextArea
-                                    placeholder="Listez vos allergies, le cas échéant"
+                                    placeholder={t("Allergies éventuelles", "Any allergies", "أي حساسية")}
                                     style={{
                                        borderRadius: "12px",
                                        border: "2px solid #f1f5f9",
@@ -2352,13 +2354,13 @@ export default function GestionProfile() {
                               <Form.Item
                                  label={
                                     <Text strong style={{ fontSize: "16px" }}>
-                                       Maladies chroniques
+                                       {t("Maladies chroniques", "Chronic conditions", "الأمراض المزمنة")}
                                     </Text>
                                  }
                                  name="chronicConditions"
                               >
                                  <Input.TextArea
-                                    placeholder="List your Maladies chroniques, if applicable"
+                                    placeholder={t("Maladies chroniques éventuelles", "Any chronic conditions", "أي أمراض مزمنة")}
                                     style={{
                                        borderRadius: "12px",
                                        border: "2px solid #f1f5f9",
@@ -2375,13 +2377,13 @@ export default function GestionProfile() {
                               <Form.Item
                                  label={
                                     <Text strong style={{ fontSize: "16px" }}>
-                                       Medications
+                                       {t("Medications", "Medications", "الأدوية")}
                                     </Text>
                                  }
                                  name="medications"
                               >
                                  <Input.TextArea
-                                    placeholder="Listez vos médicaments actuels, le cas échéant"
+                                    placeholder={t("Traitements en cours", "Current medications", "الأدوية الحالية")}
                                     style={{
                                        borderRadius: "12px",
                                        border: "2px solid #f1f5f9",
@@ -2426,7 +2428,7 @@ export default function GestionProfile() {
                                     "translateY(0)";
                               }}
                            >
-                              Enregistrer
+                              {t("Enregistrer", "Save", "حفظ")}
                            </Button>
                            <Button
                               icon={<CloseOutlined />}
@@ -2452,7 +2454,7 @@ export default function GestionProfile() {
                                     "translateY(0)";
                               }}
                            >
-                              Annuler
+                              {t("Annuler", "Cancel", "إلغاء")}
                            </Button>
                         </div>
                      </Form>

@@ -1,0 +1,7 @@
+com\vitacare\vitacare\Security\MasarSecurityTest.class
+com\vitacare\vitacare\Rules\MasarRulesEngineTest.class
+com\vitacare\vitacare\Service\DocumentAnalysisServiceTest.class
+com\vitacare\vitacare\Rules\UnitConverterTest.class
+com\vitacare\vitacare\Security\RedactorTest.class
+com\vitacare\vitacare\Rules\SynonymNormalizerTest.class
+com\vitacare\vitacare\Security\DoctorSignupTest.class

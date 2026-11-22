@@ -20,10 +20,10 @@ body {
 }
 .container {
    width: 100%;
-   height: 100vh; 
-   display: flex;
-   justify-content: center;
-   align-items: center;
+   min-height: 100vh;
+   display: grid;
+   place-items: center;
+   padding: clamp(1rem, 4vw, 2rem);
 
    background: url('../assets/bg.jpg') center/cover no-repeat;
    position: relative;
@@ -44,20 +44,17 @@ body {
    display: flex;
    flex-direction: column;
    align-items: center;
-   gap: 1.3em;
-   padding: 2.5em 2em;
-   width: 30em;
-   min-height: 37em;
+   gap: 1rem;
+   padding: clamp(1rem, 5vw, 2rem);
+   width: 100%;
+   overflow-wrap: anywhere;
    border-radius: 16px;
 
-   /* Elegant frosted background */
    background: linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.85) 5%,
-      rgba(255, 255, 255, 0.85) 100%
+      rgba(255, 255, 255, 0.96) 5%,
+      rgba(247, 251, 253, 0.96) 100%
    );
-   backdrop-filter: blur(18px) saturate(140%);
-   -webkit-backdrop-filter: blur(18px) saturate(140%);
    border: 1px solid rgba(255, 255, 255, 0.35);
    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
 }
@@ -86,8 +83,8 @@ body {
 }
 
 .glassy-card .logo-img {
-   height: 80px;
-   width: 80px;
+   height: 64px;
+   width: 64px;
 }
 
 .glassy-card h1 {
@@ -138,14 +135,26 @@ body {
 }
 
 /* Form */
+.account-role {
+   display: grid;
+   grid-template-columns: 1fr minmax(6rem, 42%);
+   align-items: center;
+   gap: 0.75rem;
+   font-size: 0.9rem;
+   font-weight: 500;
+}
+
 .glassy-card form {
    display: flex;
    flex-direction: column;
-   gap: 1em;
+   gap: 0.75rem;
    width: 100%;
 }
 
-.glassy-card input {
+.glassy-card input,
+.glassy-card select {
+   width: 100%;
+   min-width: 0;
    height: 3em;
    background: rgba(255, 255, 255, 0.6);
    padding: 0 1em;
@@ -156,15 +165,28 @@ body {
    transition: all 0.3s ease;
 }
 
-.glassy-card input:focus {
+.glassy-card input:focus,
+.glassy-card select:focus-visible {
    border-color: #31c1e1;
    background: rgba(255, 255, 255, 0.9);
    box-shadow: 0 0 12px rgba(49, 193, 225, 0.3);
    outline: none;
 }
 
+.glassy-card form button {
+   height: auto;
+   min-height: 40px;
+   padding-inline: 0.75rem;
+}
+
 .glassy-card input::placeholder {
    color: rgba(0, 0, 0, 0.5);
+}
+
+.glassy-card .account-role select {
+   height: 2.25rem;
+   padding-inline: 0.5rem;
+   font-size: 0.9rem;
 }
 
 /* Divider OR */

@@ -1,0 +1,15 @@
+CENTRE HOSPITALIER UNIVERSITAIRE
+Service de Biochimie Clinique
+Dossier : LAB-99214
+Date d'analyse : 2026-11-05
+
+Nom / Prénom : Alice Durand
+CIN : 09123456
+Email : alice.durand@test.fr
+
+RÉSULTATS BIOLOGIQUES :
+- Glycémie à jeun : 7.2 mmol/L  (Valeur seuil : 7.0 mmol/L)
+- HbA1c (IFCC) : 53 mmol/mol  (Seuil diagnostic diabète : 48 mmol/mol)
+- Créatininémie : 82 µmol/L
+
+Remarque : Résultats compatibles avec une anomalie de la régulation glycémique, à confronter à la clinique.

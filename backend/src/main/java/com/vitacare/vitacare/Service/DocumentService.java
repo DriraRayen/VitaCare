@@ -7,30 +7,45 @@ import com.vitacare.vitacare.Model.Tag;
 import com.vitacare.vitacare.Model.User;
 import com.vitacare.vitacare.Repository.DocumentRepository;
 import com.vitacare.vitacare.Repository.TagRepository;
+import com.vitacare.vitacare.Repository.CaseResultRepository;
+import com.vitacare.vitacare.Repository.CareDocumentShareRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @Transactional
 public class DocumentService {
+    private static final Logger LOG = LoggerFactory.getLogger(DocumentService.class);
 
     private final DocumentRepository documentRepository;
     private final TagRepository tagRepository;
+    private final CaseResultRepository caseResults;
+    private final CareDocumentShareRepository shares;
     private final DTOMapper dtoMapper;
     private final Path uploadDir = Paths.get("uploads");
 
     public DocumentService(DocumentRepository documentRepository, TagRepository tagRepository, 
+                          CaseResultRepository caseResults, CareDocumentShareRepository shares,
                           DTOMapper dtoMapper) throws IOException {
         this.documentRepository = documentRepository;
         this.tagRepository = tagRepository;
+        this.caseResults = caseResults;
+        this.shares = shares;
         this.dtoMapper = dtoMapper;
         if (!Files.exists(uploadDir)) {
             Files.createDirectories(uploadDir);
@@ -38,9 +53,25 @@ public class DocumentService {
     }
 
     // Upload a file and associate with a user
+    @Transactional(rollbackFor = IOException.class)
     public Document uploadFile(MultipartFile file, User user) throws IOException {
-        String filename = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+        String original = file.getOriginalFilename();
+        if (file.isEmpty() || original == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+        String basename = original.replace('\\', '/');
+        basename = basename.substring(basename.lastIndexOf('/') + 1);
+        if (basename.isBlank() || basename.length() > 200) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+        String filename = UUID.randomUUID() + "_" + basename;
         Path filePath = uploadDir.resolve(filename);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) removeFile(filePath);
+            }
+        });
         file.transferTo(filePath);
 
         Document document = new Document();
@@ -60,16 +91,29 @@ public class DocumentService {
     }
 
     // Delete a document, only if it belongs to the user
-    public void deleteDocument(User user, String filename) throws IOException {
-        Document doc = documentRepository.findByFilenameAndUserId(filename, user.getId())
-                .orElseThrow(() -> new RuntimeException("Document not found or access denied"));
+    public void deleteDocument(User user, String filename) {
+        Document doc = documentRepository.lockOwnedDocument(filename, user.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
         Path filePath = Paths.get(doc.getFilePath());
-        if (Files.exists(filePath)) {
-            Files.delete(filePath);
-        }
-
+        new ArrayList<>(doc.getTags()).forEach(tag -> tag.removeDocument(doc));
+        caseResults.detachDocument(doc.getId());
+        shares.deleteByDocumentId(doc.getId());
         documentRepository.delete(doc);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                removeFile(filePath);
+            }
+        });
+    }
+
+    private void removeFile(Path filePath) {
+        try {
+            Files.deleteIfExists(filePath);
+        } catch (IOException e) {
+            LOG.warn("Could not clean up stored document file", e);
+        }
     }
 
     // Get a file resource for download
@@ -90,11 +134,11 @@ public class DocumentService {
 
     // Update document tags
     public DocumentDTO updateDocumentTags(User user, String filename, List<String> tagNames) {
-        Document document = documentRepository.findByFilenameAndUserId(filename, user.getId())
+        Document document = documentRepository.lockOwnedDocument(filename, user.getId())
                 .orElseThrow(() -> new RuntimeException("Document not found or access denied"));
 
         // Clear existing tags
-        document.getTags().clear();
+        new ArrayList<>(document.getTags()).forEach(tag -> tag.removeDocument(document));
 
         // Add new tags (create if they don't exist)
         if (tagNames != null && !tagNames.isEmpty()) {

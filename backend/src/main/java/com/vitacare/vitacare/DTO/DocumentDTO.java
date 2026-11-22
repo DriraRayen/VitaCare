@@ -11,6 +11,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DocumentDTO {
+    private boolean analysed;
     private Long id;
     private String filename;
     private String fileType;

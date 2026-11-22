@@ -1,14 +1,17 @@
 import React, { useState } from "react";
 import Button from "./Button";
+import { useLanguage } from "../utils/language";
 
 import "../styles/Auth.css";
 import "../styles/Button.css";
 
-import GoogleLogo from "../assets/google_logo.svg";
 import Logo from "../assets/VitaCare_logo.png";
 
 export default function SignupPage({ flip, onLogin }) {
+   const { t } = useLanguage();
    const [email, setEmail] = useState("");
+   const [role, setRole] = useState("ROLE_PATIENT");
+   const [invitation, setInvitation] = useState("");
    const [password, setPassword] = useState("");
    const [confirmPassword, setConfirmPassword] = useState("");
    const [error, setError] = useState("");
@@ -29,8 +32,9 @@ export default function SignupPage({ flip, onLogin }) {
 
    const handleSubmit = async (e) => {
       e.preventDefault();
+      setError("");
       if (password !== confirmPassword) {
-         setError("Passwords do not match");
+         setError(t("Les mots de passe diffèrent.", "Passwords do not match.", "كلمتا المرور غير متطابقتين."));
          return;
       }
 
@@ -38,17 +42,36 @@ export default function SignupPage({ flip, onLogin }) {
          const res = await fetch("http://localhost:8081/auth/signup", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({
+               email,
+               password,
+               role,
+               ...(role === "ROLE_CARE_DOCTOR" && { doctorInvitation: invitation.trim() }),
+            }),
          });
 
-         if (!res.ok) throw new Error("Signup failed");
-
          const data = await res.json();
-         localStorage.setItem("jwt", data.token);
 
-         if (onLogin) onLogin(); // <-- Notify parent
+         if (!res.ok) {
+            if (data.code === "DOCTOR_INVITATION_REQUIRED") {
+               throw new Error(t(
+                  "Utilisez une invitation valide pour cette adresse e-mail.",
+                  "Use a valid doctor invitation for this email address.",
+                  "استخدم دعوة طبيب صالحة لهذا البريد الإلكتروني."
+               ));
+            }
+            const errorMsg = data.error || data.message || (typeof data === "object" ? Object.values(data)[0] : "Signup failed");
+            throw new Error(errorMsg);
+         }
+
+         if (data.token) {
+            localStorage.setItem("jwt", data.token);
+            if (onLogin) onLogin(); // <-- Notify parent
+         } else if (flip) {
+            flip(); // Switch to login tab if no token
+         }
       } catch (err) {
-         setError("Failed to create account");
+         setError(err.message || "Failed to create account");
       }
    };
 
@@ -67,7 +90,7 @@ export default function SignupPage({ flip, onLogin }) {
             <input
                type="email"
                name="email"
-               placeholder="Email"
+               placeholder={t("Email", "Email", "البريد الإلكتروني")}
                value={email}
                onChange={(e) => setEmail(e.target.value)}
                required
@@ -76,7 +99,7 @@ export default function SignupPage({ flip, onLogin }) {
             <input
                type="password"
                name="password"
-               placeholder="Password"
+               placeholder={t("Mot de passe", "Password", "كلمة المرور")}
                value={password}
                onChange={(e) => setPassword(e.target.value)}
                required
@@ -85,18 +108,44 @@ export default function SignupPage({ flip, onLogin }) {
             <input
                type="password"
                name="confirmPassword"
-               placeholder="Confirm Password"
+               placeholder={t("Confirmer le mot de passe", "Confirm password", "تأكيد كلمة المرور")}
                value={confirmPassword}
                onChange={(e) => setConfirmPassword(e.target.value)}
                required
             />
 
+            <label className="account-role" htmlFor="account-role">{t("Type de compte", "Account type", "نوع الحساب")}
+               <select id="account-role" value={role} onChange={(event) => {
+                  setRole(event.target.value);
+                  setInvitation("");
+                  setError("");
+               }}>
+                  <option value="ROLE_PATIENT">{t("Patient", "Patient", "مريض")}</option>
+                  <option value="ROLE_CARE_DOCTOR">{t("Médecin", "Doctor", "طبيب")}</option>
+               </select>
+            </label>
+
+            {role === "ROLE_CARE_DOCTOR" && (
+               <input
+                  type="password"
+                  name="doctorInvitation"
+                  aria-label={t("Code d’invitation médecin", "Doctor invitation code", "رمز دعوة الطبيب")}
+                  placeholder={t("Code d’invitation médecin", "Doctor invitation code", "رمز دعوة الطبيب")}
+                  autoComplete="off"
+                  value={invitation}
+                  onChange={(event) => setInvitation(event.target.value)}
+                  maxLength={128}
+                  required
+               />
+            )}
+
             <Button variant="blue" type="submit">
-               Sign up
+               {t("Créer un compte", "Sign up", "إنشاء حساب")}
             </Button>
 
+            {role === "ROLE_PATIENT" && <>
             <div className="or">
-               <hr /> <p>Or</p> <hr />
+               <hr /> <p>{t("Ou", "Or", "أو")}</p> <hr />
             </div>
 
             <Button type="button" variant="teal" onClick={handleGoogleSignup}>
@@ -119,13 +168,14 @@ export default function SignupPage({ flip, onLogin }) {
                      </clipPath>
                   </defs>
                </svg>
-               Sign up with Google
+               {t("S’inscrire avec Google", "Sign up with Google", "التسجيل عبر Google")}
             </Button>
+            </>}
 
             <p id="new">
-               Already have an account? &nbsp;
+               {t("Vous avez déjà un compte ?", "Already have an account?", "لديك حساب بالفعل؟")}{" "}
                <span onClick={flip} className="flip-clicker">
-                  Sign in!
+                  {t("Se connecter", "Sign in", "تسجيل الدخول")}
                </span>
             </p>
          </form>

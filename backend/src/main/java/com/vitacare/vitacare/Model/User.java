@@ -21,12 +21,15 @@ import java.time.LocalDateTime;
 @EntityListeners(AuditingEntityListener.class)
 public class User {
 
+    public static final String DEMO_DOCTOR_EMAIL = "doctor@vitacare.com";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String email;
 
+    @JsonIgnore
     private String password;
 
     @Column(name = "first_name")
@@ -47,6 +50,14 @@ public class User {
 
     @Column(name = "phone_number")
     private String phoneNumber; // Numéro de téléphone
+
+    @Column(name = "role")
+    @Enumerated(EnumType.STRING)
+    private Role role = Role.ROLE_PATIENT;
+
+    @JsonIgnore
+    @Column(unique = true, updatable = false)
+    private String doctorRegistrationEmail;
 
     @Column(name = "provider")
     @Enumerated(EnumType.STRING)
@@ -96,5 +107,11 @@ public class User {
         MALE,
         FEMALE,
 
+    }
+
+    public enum Role {
+        ROLE_PATIENT,
+        ROLE_DOCTOR,
+        ROLE_CARE_DOCTOR
     }
 }

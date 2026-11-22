@@ -5,20 +5,25 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
 
-    // Use a stronger secret key (in production, use environment variable)
-    @Value("${jwt.secret:mySecretKeyThatIsAtLeast256BitsLongForHS256Algorithm}")
-    private String secretKey;
+    private final SecretKey signingKey;
+
+    public JwtUtil(@Value("${jwt.secret:}") String secret) {
+        signingKey = secret.isBlank()
+                ? Keys.secretKeyFor(SignatureAlgorithm.HS256)
+                : Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
 
     @Value("${jwt.expiration:3600000}") // 1 hour default
     private long expiration;
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secretKey.getBytes());
+        return signingKey;
     }
 
     public String generateToken(String username) {

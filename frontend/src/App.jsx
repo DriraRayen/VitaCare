@@ -9,6 +9,15 @@ import {
 import {jwtDecode} from "jwt-decode";
 import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
+import SharedPacketPage from "./pages/SharedPacketPage";
+import { LanguageContext, languages } from "./utils/language";
+import { ConfigProvider } from "antd";
+import frFR from "antd/locale/fr_FR";
+import enUS from "antd/locale/en_US";
+import arEG from "antd/locale/ar_EG";
+
+const locales = { fr: frFR, en: enUS, ar: arEG };
+
 function OAuth2RedirectHandler({ setIsAuthenticated }) {
    const navigate = useNavigate();
 
@@ -26,26 +35,32 @@ function OAuth2RedirectHandler({ setIsAuthenticated }) {
    return null;
 }
 
+function hasValidToken() {
+   try {
+      const token = localStorage.getItem("jwt");
+      return Boolean(token && jwtDecode(token).exp > Date.now() / 1000);
+   } catch {
+      return false;
+   }
+}
+
 function App() {
-   const [isAuthenticated, setIsAuthenticated] = useState(false);
+   const [isAuthenticated, setIsAuthenticated] = useState(hasValidToken);
+   const [language, setLanguage] = useState(() => {
+      const saved = localStorage.getItem("vitacare_language");
+      return languages.some((option) => option.value === saved) ? saved : "fr";
+   });
+
+   useEffect(() => {
+      localStorage.setItem("vitacare_language", language);
+      document.documentElement.lang = language;
+      document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
+   }, [language]);
 
    const validateToken = () => {
-      const token = localStorage.getItem("jwt");
-      if (token) {
-         try {
-            const decoded = jwtDecode(token);
-            const currentTime = Date.now() / 1000;
-            if (decoded.exp > currentTime) {
-               setIsAuthenticated(true);
-               return;
-            } else {
-               localStorage.removeItem("jwt"); // expired
-            }
-         } catch {
-            localStorage.removeItem("jwt"); // invalid
-         }
-      }
-      setIsAuthenticated(false);
+      const valid = hasValidToken();
+      if (!valid) localStorage.removeItem("jwt");
+      setIsAuthenticated(valid);
    };
 
    useEffect(() => validateToken(), []);
@@ -55,34 +70,24 @@ function App() {
    }, []);
 
    return (
-      <Router>
-         <Routes>
-            <Route
-               path="/login"
-               element={
-                  isAuthenticated ? (
-                     <Navigate to="/" />
-                  ) : (
-                     <LoginPage onLogin={validateToken} />
-                  )
-               }
-            />
-            <Route
-               path="/oauth2/redirect"
-               element={
-                  <OAuth2RedirectHandler
-                     setIsAuthenticated={setIsAuthenticated}
-                  />
-               }
-            />
-            <Route
-               path="/*"
-               element={
-                  isAuthenticated ? <Dashboard /> : <Navigate to="/login" />
-               }
-            />
-         </Routes>
-      </Router>
+      <LanguageContext.Provider value={language}>
+         <ConfigProvider locale={locales[language]} direction={language === "ar" ? "rtl" : "ltr"}>
+            <Router>
+               <Routes>
+                  <Route path="/share/:token" element={<SharedPacketPage />} />
+                  <Route path="/login" element={
+                     isAuthenticated ? <Navigate to="/" /> : <LoginPage onLogin={validateToken} />
+                  } />
+                  <Route path="/oauth2/redirect" element={
+                     <OAuth2RedirectHandler setIsAuthenticated={setIsAuthenticated} />
+                  } />
+                  <Route path="/*" element={
+                     isAuthenticated ? <Dashboard setLanguage={setLanguage} /> : <Navigate to="/login" />
+                  } />
+               </Routes>
+            </Router>
+         </ConfigProvider>
+      </LanguageContext.Provider>
    );
 }
 

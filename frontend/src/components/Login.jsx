@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import Button from "./Button";
+import { useLanguage } from "../utils/language";
 
 import "../styles/Auth.css";
 import "../styles/Button.css";
 
-import GoogleLogo from "../assets/google_logo.svg";
 import Logo from "../assets/VitaCare_logo.png";
 
 export default function LoginPage({ flip, onLogin }) {
+   const { t } = useLanguage();
    const [email, setEmail] = useState("");
    const [password, setPassword] = useState("");
    const [error, setError] = useState("");
@@ -36,14 +37,17 @@ export default function LoginPage({ flip, onLogin }) {
             body: JSON.stringify({ email, password }),
          });
 
-         if (!res.ok) throw new Error("Login failed");
-
          const data = await res.json();
+
+         if (!res.ok) {
+            throw new Error(data.error || "Invalid email or password");
+         }
+
          localStorage.setItem("jwt", data.token);
 
          if (onLogin) onLogin(); // <-- Notify parent
       } catch (err) {
-         setError("Invalid email or password");
+         setError(err.message || "Invalid email or password");
       }
    };
 
@@ -63,7 +67,7 @@ export default function LoginPage({ flip, onLogin }) {
             <input
                type="email"
                name="email"
-               placeholder="Email"
+               placeholder={t("Email", "Email", "البريد الإلكتروني")}
                value={email}
                onChange={(e) => setEmail(e.target.value)}
                required
@@ -72,23 +76,19 @@ export default function LoginPage({ flip, onLogin }) {
             <input
                type="password"
                name="password"
-               placeholder="Password"
+               placeholder={t("Mot de passe", "Password", "كلمة المرور")}
                value={password}
                onChange={(e) => setPassword(e.target.value)}
                required
             />
 
-            <div className="forgot-password">
-               <a href="#">Forgot password</a>
-            </div>
-
             <Button variant="blue" type="submit">
-               Sign in
+               {t("Connexion", "Sign in", "تسجيل الدخول")}
             </Button>
 
             <div className="or">
                <hr />
-               <p>Or</p>
+               <p>{t("Ou", "Or", "أو")}</p>
                <hr />
             </div>
 
@@ -112,13 +112,13 @@ export default function LoginPage({ flip, onLogin }) {
                      </clipPath>
                   </defs>
                </svg>
-               Sign in with Google
+               {t("Connexion avec Google", "Sign in with Google", "تسجيل الدخول عبر Google")}
             </Button>
 
             <p id="new">
-               New to VitaCare? &nbsp;
+               {t("Nouveau sur VitaCare ?", "New to VitaCare?", "جديد على VitaCare؟")}{" "}
                <span onClick={flip} className="flip-clicker">
-                  Join Now!
+                  {t("Créer un compte", "Create an account", "إنشاء حساب")}
                </span>
             </p>
          </form>

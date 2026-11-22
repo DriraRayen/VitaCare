@@ -1,0 +1,58 @@
+id: "diabetes-diagnosis"
+title: "Suspicion de diabète : confirmer le diagnostic"
+guideline: "ADA Standards of Care in Diabetes 2026"
+reviewed_by: null
+note: "Sans hyperglycémie évidente, un second test de confirmation est nécessaire."
+urgent_message:
+  fr: "Consultez un médecin en urgence ou appelez le SAMU (190)."
+  en: "Seek urgent care or call emergency services (190)."
+urgent_questions:
+  - id: "uq1"
+    fr: "Vomissements, douleurs abdominales, respiration rapide et profonde ou haleine fruitée ?"
+    en: "Vomiting, abdominal pain, deep rapid breathing or fruity breath?"
+  - id: "uq2"
+    fr: "Confusion, somnolence importante ou perte de connaissance ?"
+    en: "Confusion, extreme drowsiness or loss of consciousness?"
+  - id: "uq3"
+    fr: "Soif intense, urines très fréquentes et grande faiblesse ?"
+    en: "Intense thirst, very frequent urination and extreme weakness?"
+  - id: "uq4"
+    fr: "Douleur thoracique, faiblesse d'un côté du corps ou difficulté à parler ?"
+    en: "Chest pain, one-sided weakness or difficulty speaking?"
+  - id: "uq5"
+    fr: "Pied rouge, chaud, gonflé, ou plaie qui suppure, avec ou sans fièvre ?"
+    en: "Red, warm, swollen foot, or oozing wound, with or without fever?"
+  - id: "uq6"
+    fr: "Perte soudaine de la vue ?"
+    en: "Sudden loss of vision?"
+tests:
+  - code: "FASTING_GLUCOSE"
+    synonyms: ["glycémie à jeun", "glycémie", "FPG", "glycemie a jeun", "glycemie"]
+    unit: "mg/dL"
+    conv:
+      "g/L": 100.0
+      "mmol/L": 18.0
+    validity_days: 90
+    flag: ">=126"
+    specialty: "Laboratoire d'analyses médicales"
+  - code: "HBA1C"
+    synonyms: ["HbA1c", "hémoglobine glyquée", "hemoglobine glyquee", "A1C", "a1c"]
+    unit: "%"
+    conv:
+      "mmol/mol":
+        scale: 0.0915
+        offset: 2.15
+    validity_days: 90
+    flag: ">=6.5"
+    caveat: "Moins fiable en cas d'hémoglobinopathie ; privilégier la glycémie."
+    specialty: "Laboratoire d'analyses médicales"
+  - code: "OGTT_2H"
+    synonyms: ["HGPO", "OGTT", "glycémie à 2 heures", "glycemie a 2 heures", "hyperglycémie provoquée"]
+    unit: "mg/dL"
+    conv:
+      "g/L": 100.0
+      "mmol/L": 18.0
+    validity_days: 90
+    flag: ">=200"
+    optional: true
+    specialty: "Laboratoire d'analyses médicales"

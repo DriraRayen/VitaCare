@@ -1,0 +1,16 @@
+LABORATOIRE D'ANALYSES MÉDICALES DU CENTRE
+Dr. A. Meunier - Biologiste médical
+14 Rue de la Liberté, 75001 Paris
+Tel : 01 42 68 00 11
+
+PATIENT : Jean Dupont
+Né(e) le : 14/05/1982 (44 ans)
+Prescripteur : Dr. Lambert
+Dossier N° : BIO-2026-88412
+Date de prélèvement : 2026-11-10
+
+BIOCHIMIE SANGUINE
+- Glycémie à jeun : 1.10 g/L  (Réf: 0.70 - 1.05)
+- Hémoglobine glyquée (HbA1c) : 5.8 %  (Réf: < 6.0)
+
+Conclusion : Absence de critère d'hyperglycémie majeure ce jour.

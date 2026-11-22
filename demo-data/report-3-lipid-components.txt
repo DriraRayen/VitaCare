@@ -1,0 +1,12 @@
+LABORATOIRE BIOCLINIC
+Fiche d'Analyses Biologiques
+Prélèvement du : 2026-08-15
+Patient : Sophie Martin
+
+EXPLORATION D'UNE ANOMALIE LIPIDIQUE (EAL)
+- Cholestérol total : 2.10 g/L
+- HDL cholestérol : 0.55 g/L
+- Triglycérides : 1.40 g/L
+- Rapport Cholestérol / HDL : 3.82
+
+Validation biologique effectuée le 15/08/2026.

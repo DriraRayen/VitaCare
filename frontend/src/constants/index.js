@@ -3,6 +3,9 @@ import {
    DashboardOutlined,
    FileTextOutlined,
    BarChartOutlined,
+   MedicineBoxOutlined,
+   TeamOutlined,
+   WalletOutlined,
 } from "@ant-design/icons";
 
 // Color palette
@@ -19,38 +22,30 @@ export const COLORS = {
    WARNING: "#fa8c16",
 };
 
-// Page configuration
-export const PAGE_TITLES = {
-   1: { title: "Tableau de bord", subtitle: "Bienvenue sur VitaCare" },
-   2: {
-      title: "Analyses",
-      subtitle: "Consultez vos statistiques de santé",
-   },
-   9: {
-      title: "Documents",
-      subtitle: "Organisez et gérez tous vos documents médicaux",
-   },
-   10: {
-      title: "Profil",
-      subtitle: "Gérez vos informations personnelles",
-   },
-};
-
 // Sidebar menu items configuration
 export const SIDER_ITEMS = [
    {
       key: "1",
       icon: <DashboardOutlined />,
-      label: "Tableau de bord",
    },
    {
       key: "2",
       icon: <BarChartOutlined />,
-      label: "Analyses",
+   },
+   {
+      key: "3",
+      icon: <MedicineBoxOutlined />,
+   },
+   {
+      key: "4",
+      icon: <TeamOutlined />,
+   },
+   {
+      key: "5",
+      icon: <WalletOutlined />,
    },
    {
       key: "9",
       icon: <FileTextOutlined />,
-      label: "Documents",
    },
 ];

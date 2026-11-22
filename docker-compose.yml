@@ -1,0 +1,15 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: vitacare-mysql
+    restart: always
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: vitacare
+    ports:
+      - "3306:3306"
+    volumes:
+      - vitacare_db_data:/var/lib/mysql
+
+volumes:
+  vitacare_db_data:

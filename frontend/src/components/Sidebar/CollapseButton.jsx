@@ -2,10 +2,13 @@ import React from "react";
 import { Button } from "antd";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { COLORS } from "../../constants";
+import { useLanguage } from "../../utils/language";
 
 const { GREY, TEXT_MEDIUM, SIDEBAR_BORDER } = COLORS;
 
 const CollapseButton = ({ collapsed, onClick }) => {
+   const { t, language } = useLanguage();
+   const pointsRight = collapsed !== (language === "ar");
    const handleMouseEnter = (e) => {
       e.target.style.background = "rgba(26,188,156,0.1)";
       e.target.style.transform = "none";
@@ -43,7 +46,7 @@ const CollapseButton = ({ collapsed, onClick }) => {
             onClick={onClick}
             className="no-highlight"
             icon={
-               collapsed ? (
+               pointsRight ? (
                   <RightOutlined
                      style={{
                         color: GREY,
@@ -79,7 +82,7 @@ const CollapseButton = ({ collapsed, onClick }) => {
             }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? t("Développer le menu", "Expand sidebar", "توسيع القائمة") : t("Réduire le menu", "Collapse sidebar", "طي القائمة")}
          >
             {!collapsed && (
                <span
@@ -91,7 +94,7 @@ const CollapseButton = ({ collapsed, onClick }) => {
                      transition: "color 0.2s ease",
                   }}
                >
-                  Réduire
+                  {t("Réduire", "Collapse", "طي القائمة")}
                </span>
             )}
          </Button>

@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.vitacare.vitacare.Repository.UserRepository;
 import java.io.IOException;
+import java.security.Principal;
+import org.springframework.web.server.ResponseStatusException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,7 +25,8 @@ public class UserProfileController {
     private UserRepository userRepository;
     // Récupérer le profil
     @GetMapping("/{id}")
-    public ResponseEntity<?> getProfile(@PathVariable Long id) {
+    public ResponseEntity<?> getProfile(@PathVariable Long id, Principal principal) {
+        requireOwner(id, principal);
         try {
             User user = userProfileService.getProfile(id);
             return ResponseEntity.ok(user);
@@ -34,7 +37,8 @@ public class UserProfileController {
 
     // Modifier ou supprimer n’importe quel champ du profil
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateProfile(@PathVariable Long id, @RequestBody User updatedData) {
+    public ResponseEntity<?> updateProfile(@PathVariable Long id, @RequestBody User updatedData, Principal principal) {
+        requireOwner(id, principal);
         try {
             User updatedUser = userProfileService.updateProfile(id, updatedData);
             return ResponseEntity.ok(updatedUser);
@@ -45,7 +49,8 @@ public class UserProfileController {
 
     // Télécharger ou remplacer la photo
     @PostMapping("/{id}/photo")
-    public ResponseEntity<?> uploadPhoto(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> uploadPhoto(@PathVariable Long id, @RequestParam("file") MultipartFile file, Principal principal) {
+        requireOwner(id, principal);
         try {
             User updatedUser = userProfileService.uploadPhoto(id, file);
             return ResponseEntity.ok(updatedUser);
@@ -58,7 +63,8 @@ public class UserProfileController {
 
     // Supprimer la photo
     @DeleteMapping("/{id}/photo")
-    public ResponseEntity<?> deletePhoto(@PathVariable Long id) {
+    public ResponseEntity<?> deletePhoto(@PathVariable Long id, Principal principal) {
+        requireOwner(id, principal);
         try {
             User updatedUser = userProfileService.deletePhoto(id);
             return ResponseEntity.ok(updatedUser);
@@ -70,7 +76,10 @@ public class UserProfileController {
     }
 
     @GetMapping("/user/by-email/{email}")
-    public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
+    public ResponseEntity<?> getUserByEmail(@PathVariable String email, Principal principal) {
+        if (!principal.getName().equals(email)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
         try {
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé avec l'email : " + email));
@@ -80,6 +89,11 @@ public class UserProfileController {
         }
     }
     // Méthode utilitaire pour les réponses d'erreur
+    private void requireOwner(Long id, Principal principal) {
+        userRepository.findByEmail(principal.getName()).filter(user -> user.getId().equals(id))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    }
+
     private ResponseEntity<Map<String, String>> errorResponse(String message, HttpStatus status) {
         Map<String, String> error = new HashMap<>();
         error.put("error", message);

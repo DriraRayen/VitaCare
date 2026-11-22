@@ -11,10 +11,10 @@ export default function AuthCard({ onLogin }) {
       <div className="container ">
          <div className="card-container ">
             <div className={`card ${flipped ? "flipped" : ""}`}>
-               <div className="card-side card-front">
+               <div className="card-side card-front" inert={flipped ? "" : undefined}>
                   <LoginPage flip={() => setFlipped(true)} onLogin={onLogin} />
                </div>
-               <div className="card-side card-back">
+               <div className="card-side card-back" inert={flipped ? undefined : ""}>
                   <SignupPage
                      flip={() => setFlipped(false)}
                      onLogin={onLogin}

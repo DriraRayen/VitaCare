@@ -1,4 +1,4 @@
-// src/utils/api.js
+import { jwtDecode } from "jwt-decode";
 const BACKEND_URL = "http://localhost:8081";
 
 // Helper function to get JWT from localStorage
@@ -10,8 +10,7 @@ export const getEmailFromToken = () => {
   if (!token) return null;
   
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.sub; // Your JWT uses 'sub' for email
+    return jwtDecode(token).sub;
   } catch {
     return null;
   }
@@ -36,8 +35,8 @@ export const apiFetch = async (url, options = {}) => {
   try {
     const res = await fetch(`${BACKEND_URL}${url}`, options);
     
-    // If unauthorized, log out automatically
-    if (res.status === 401 || res.status === 403) {
+    // If token expired or invalid, log out automatically
+    if (res.status === 401) {
       localStorage.removeItem("jwt");
       window.location.href = "/login";
       return;
@@ -45,7 +44,7 @@ export const apiFetch = async (url, options = {}) => {
     
     return res;
   } catch (err) {
-    console.error("API fetch error:", err);
+    if (err.name !== "AbortError") console.error("API fetch error:", err);
     throw err;
   }
 };

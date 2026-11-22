@@ -2,9 +2,12 @@ package com.vitacare.vitacare.Controller;
 
 import com.vitacare.vitacare.Model.User;
 import com.vitacare.vitacare.Payload.LoginRequest;
+import com.vitacare.vitacare.Payload.SignupRequest;
 import com.vitacare.vitacare.Payload.LoginResponse;
 import com.vitacare.vitacare.Repository.UserRepository;
+import com.vitacare.vitacare.Security.DoctorInvitations;
 import com.vitacare.vitacare.Security.JwtUtil;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,17 +31,20 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
+    private final DoctorInvitations doctorInvitations;
 
     public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                          AuthenticationManager authenticationManager, JwtUtil jwtUtil) {
+                          AuthenticationManager authenticationManager, JwtUtil jwtUtil,
+                          DoctorInvitations doctorInvitations) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
+        this.doctorInvitations = doctorInvitations;
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@Valid @RequestBody LoginRequest request, BindingResult bindingResult) {
+    public ResponseEntity<?> signup(@Valid @RequestBody SignupRequest request, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
             Map<String, String> errors = new HashMap<>();
             bindingResult.getFieldErrors().forEach(error ->
@@ -47,21 +53,37 @@ public class AuthController {
             return ResponseEntity.badRequest().body(errors);
         }
 
+        boolean doctor = request.getRole() == User.Role.ROLE_DOCTOR || request.getRole() == User.Role.ROLE_CARE_DOCTOR;
+        String email = doctor ? DoctorInvitations.normalizeEmail(request.getEmail()) : request.getEmail();
         try {
-            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            if (doctor && (!doctorInvitations.matches(email, request.getDoctorInvitation())
+                    || userRepository.existsByDoctorRegistrationEmail(email))) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("code", "DOCTOR_INVITATION_REQUIRED"));
+            }
+            if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "User already exists!"));
             }
 
             User user = new User();
-            user.setEmail(request.getEmail());
+            user.setEmail(email);
             user.setPassword(passwordEncoder.encode(request.getPassword()));
             user.setProvider(User.AuthProvider.LOCAL);
+            if (doctor) {
+                user.setRole(User.Role.ROLE_CARE_DOCTOR);
+                user.setDoctorRegistrationEmail(email);
+            }
             userRepository.save(user);
 
-            return ResponseEntity.ok(Map.of("message", "User registered successfully!"));
+            String token = jwtUtil.generateToken(user.getEmail());
+            return ResponseEntity.ok(Map.of(
+                    "message", "User registered successfully!",
+                    "token", token
+            ));
+        } catch (DataIntegrityViolationException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Registration conflicts with an existing account"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Registration failed: " + e.getMessage()));
+                    .body(Map.of("error", "Registration failed"));
         }
     }
 

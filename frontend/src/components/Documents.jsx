@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useLanguage } from "../utils/language";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
    DeleteOutlined,
    SearchOutlined,
@@ -10,6 +11,7 @@ import {
    PlusOutlined,
 } from "@ant-design/icons";
 import {
+   Alert,
    Upload,
    message,
    Button,
@@ -22,8 +24,9 @@ import {
    Space,
    Input,
 } from "antd";
-import { pdfjs } from "react-pdf";
+import * as pdfjs from "pdfjs-dist";
 import { apiFetch, getEmailFromToken } from "../utils/api";
+import { documentAccept, documentType, uploadErrorMessage, uploadIssue } from "../utils/documentUpload";
 import "../styles/Documents.css";
 
 // Dashboard palette
@@ -49,14 +52,13 @@ const LANGUAGE_OPTIONS = [
    { value: "zh", label: "🇨🇳 Chinois", flag: "🇨🇳" },
 ];
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.js", import.meta.url).href;
 
 const { Title, Text } = Typography;
-const ACCEPTED_TYPES = ["image/", "application/pdf"];
 
 const generatePdfThumbnail = async (url) => {
    try {
-      const pdf = await pdfjs.getDocument(url).promise;
+      const pdf = await pdfjs.getDocument({ url, isEvalSupported: false }).promise;
       const page = await pdf.getPage(1);
       const viewport = page.getViewport({ scale: 1.5 });
       const canvas = document.createElement("canvas");
@@ -66,14 +68,14 @@ const generatePdfThumbnail = async (url) => {
          .promise;
       return canvas.toDataURL();
    } catch {
-      return "/pdf-fallback.png";
+      return null;
    }
 };
 
 // PDF text extraction function
 const extractTextFromPdf = async (pdfBlob) => {
    try {
-      const pdf = await pdfjs.getDocument(URL.createObjectURL(pdfBlob)).promise;
+      const pdf = await pdfjs.getDocument({ url: URL.createObjectURL(pdfBlob), isEvalSupported: false }).promise;
       let fullText = "";
 
       for (let i = 1; i <= pdf.numPages; i++) {
@@ -86,22 +88,6 @@ const extractTextFromPdf = async (pdfBlob) => {
       return fullText.trim();
    } catch (error) {
       throw new Error("Unable to extract text from PDF");
-   }
-};
-
-const handleAnalyse = async (filename) => {
-   try {
-      const email = getEmailFromToken();
-      const res = await apiFetch(
-         `/api/documents/analyse/${encodeURIComponent(
-            filename
-         )}?email=${encodeURIComponent(email)}`,
-         { method: "POST" }
-      );
-      if (!res) throw new Error("Analyse échouée");
-      message.success(`Analyse de ${filename} terminée!`);
-   } catch {
-      message.error("Erreur lors de l'analyse du document");
    }
 };
 
@@ -152,12 +138,16 @@ const getFileTypeTag = (contentType) => {
    );
 };
 
-const GestionDocuments = ({ searchQuery = "" }) => {
+const GestionDocuments = ({ searchQuery = "", onAnalyse, onClearSearch }) => {
+   const { language, t } = useLanguage();
+   const languageNames = new Intl.DisplayNames([language], { type: "language" });
+   const [loadFailed, setLoadFailed] = useState(false);
+   const documentRequest = useRef(null);
    const [fileList, setFileList] = useState([]);
    const [previewOpen, setPreviewOpen] = useState(false);
    const [previewContent, setPreviewContent] = useState("");
    const [isPdf, setIsPdf] = useState(false);
-   const [uploading, setUploading] = useState(false);
+   const [uploading, setUploading] = useState(0);
    const { Dragger } = Upload;
    const [sortBy, setSortBy] = useState("latest");
 
@@ -484,9 +474,9 @@ const GestionDocuments = ({ searchQuery = "" }) => {
             throw new Error("Failed to save tags");
          }
 
-         message.success(hasTag ? "Étiquette retirée" : "Étiquette ajoutée");
+         message.success(hasTag ? t("Étiquette retirée", "Tag removed", "أُزيل الوسم") : t("Étiquette ajoutée", "Tag added", "أُضيف الوسم"));
       } catch (error) {
-         message.error("Erreur lors de la sauvegarde de l'étiquette");
+         message.error(t("Erreur lors de la sauvegarde de l'étiquette", "Could not save the tag", "تعذر حفظ الوسم"));
          // Revert local state on error
          setDocumentTags((prev) => ({
             ...prev,
@@ -501,13 +491,13 @@ const GestionDocuments = ({ searchQuery = "" }) => {
 
    const performTranslation = async () => {
       if (!sourceText.trim()) {
-         message.error("Aucun texte à traduire");
+         message.error(t("Aucun texte à traduire", "No text to translate", "لا يوجد نص للترجمة"));
          return;
       }
 
       // Prevent same language translation (but allow auto-detect)
       if (sourceLanguage === targetLanguage && sourceLanguage !== "auto") {
-         message.error("Veuillez sélectionner des langues différentes");
+         message.error(t("Veuillez sélectionner des langues différentes", "Choose different languages", "اختر لغتين مختلفتين"));
          return;
       }
 
@@ -531,10 +521,10 @@ const GestionDocuments = ({ searchQuery = "" }) => {
          );
          message.destroy();
          setTranslationResult(translated);
-         message.success("Traduction terminée!");
+         message.success(t("Traduction terminée!", "Translation complete", "اكتملت الترجمة"));
       } catch (error) {
          message.destroy();
-         message.error("Erreur de traduction");
+         message.error(t("Erreur de traduction", "Translation failed", "تعذرت الترجمة"));
          console.error("Translation error:", error);
       } finally {
          setTranslating(false);
@@ -543,8 +533,8 @@ const GestionDocuments = ({ searchQuery = "" }) => {
 
    const handleTranslate = async (filename) => {
       const file = fileList.find((f) => f.uid === filename);
-      if (!file) {
-         message.error("Fichier introuvable");
+      if (!file?.blob) {
+         message.error(t("Fichier indisponible", "File unavailable", "الملف غير متاح"));
          return;
       }
 
@@ -574,14 +564,17 @@ const GestionDocuments = ({ searchQuery = "" }) => {
       }
    };
 
-   const fetchDocuments = async () => {
+   const fetchDocuments = useCallback(async () => {
+      documentRequest.current?.abort();
+      const request = new AbortController();
+      documentRequest.current = request;
+      const { signal } = request;
+      setLoadFailed(false);
       try {
-         const email = getEmailFromToken();
-         const res = await apiFetch(
-            `/api/documents?email=${encodeURIComponent(email)}`
-         );
-         if (!res) return;
+         const res = await apiFetch("/api/documents", { signal });
+         if (!res?.ok) throw new Error("Documents unavailable");
          const data = await res.json();
+         if (signal.aborted) return;
 
          // Initialize tags from backend data
          const tagsMap = {};
@@ -593,52 +586,42 @@ const GestionDocuments = ({ searchQuery = "" }) => {
          });
          setDocumentTags(tagsMap);
 
-         const list = await Promise.all(
-            data.map(async (doc) => {
-               const url = `/api/documents/uploads/${encodeURIComponent(
-                  doc.filename
-               )}?email=${encodeURIComponent(email)}`;
-               const fileRes = await apiFetch(url);
-               const blob = await fileRes.blob();
-               const contentType = fileRes.headers.get("Content-Type");
-
-               const fixedBlob =
-                  contentType?.includes("pdf") &&
-                  blob.type !== "application/pdf"
-                     ? new Blob([blob], { type: "application/pdf" })
-                     : blob;
-
-               const objectUrl = URL.createObjectURL(fixedBlob);
-
-               let thumbUrl = objectUrl;
-               if (doc.fileType?.startsWith("application/pdf")) {
-                  thumbUrl = await generatePdfThumbnail(objectUrl);
-               }
-
-               return {
-                  uid: doc.filename,
-                  name: doc.filename,
-                  contentType: doc.fileType,
-                  url: objectUrl,
-                  blob: fixedBlob,
-                  thumbUrl,
-                  uploadedAt: doc.uploadedAt
-                     ? new Date(doc.uploadedAt)
-                     : new Date(),
-               };
-            })
-         );
-
+         const list = data.map((doc) => ({
+            uid: doc.filename,
+            analysed: doc.analysed,
+            name: doc.filename,
+            contentType: documentType(doc.filename) || doc.fileType || "application/octet-stream",
+            uploadedAt: doc.uploadedAt ? new Date(doc.uploadedAt) : new Date(),
+         }));
          list.sort((a, b) => b.uploadedAt - a.uploadedAt);
          setFileList(list);
+
+         await Promise.allSettled(list.map(async (file) => {
+            const fileRes = await apiFetch("/api/documents/uploads/" + encodeURIComponent(file.uid), { signal });
+            if (!fileRes?.ok || signal.aborted) return;
+            const data = await fileRes.blob();
+            if (signal.aborted) return;
+            const blob = data.slice(0, data.size, file.contentType);
+            const url = URL.createObjectURL(blob);
+            signal.addEventListener("abort", () => URL.revokeObjectURL(url), { once: true });
+            setFileList((previous) => previous.map((entry) => entry.uid === file.uid
+               ? { ...entry, blob, url, thumbUrl: file.contentType.startsWith("image/") ? url : null } : entry));
+            if (file.contentType !== "application/pdf") return;
+            const thumbUrl = await generatePdfThumbnail(url);
+            if (!signal.aborted && thumbUrl) {
+               setFileList((previous) => previous.map((entry) => entry.uid === file.uid
+                  ? { ...entry, thumbUrl } : entry));
+            }
+         }));
       } catch {
-         message.error("Erreur lors de la récupération des documents");
+         if (!signal.aborted) setLoadFailed(true);
       }
-   };
+   }, []);
 
    useEffect(() => {
       fetchDocuments();
-   }, []);
+      return () => documentRequest.current?.abort();
+   }, [fetchDocuments]);
 
    const filteredDocs = fileList
       .filter(
@@ -659,6 +642,10 @@ const GestionDocuments = ({ searchQuery = "" }) => {
       });
 
    const handlePreview = (file) => {
+      if (!file.url) {
+         message.warning(t("Aperçu indisponible", "Preview unavailable", "المعاينة غير متاحة"));
+         return;
+      }
       setIsPdf(file.contentType.startsWith("application/pdf"));
 
       if (file.contentType.startsWith("application/pdf")) {
@@ -674,57 +661,47 @@ const GestionDocuments = ({ searchQuery = "" }) => {
    };
 
    const handleCustomUpload = async ({ file, onSuccess, onError }) => {
-      if (!ACCEPTED_TYPES.some((type) => file.type.startsWith(type))) {
-         message.error("Type de fichier non autorisé!");
-         return onError(new Error("Type not allowed"));
-      }
-
-      setUploading(true);
-      const formData = new FormData();
-      formData.append("file", file);
-
+      setUploading((count) => count + 1);
       try {
-         const email = getEmailFromToken();
-         const res = await apiFetch(
-            `/api/documents/upload?email=${encodeURIComponent(email)}`,
-            {
-               method: "POST",
-               body: formData,
-            }
-         );
-         if (!res) throw new Error("Upload failed");
+         const issue = uploadIssue(file);
+         if (issue) throw new Error(issue);
+         const body = new FormData();
+         body.append("file", file);
+         const res = await apiFetch("/api/documents/upload", { method: "POST", body });
+         if (!res?.ok) throw new Error(res?.status === 413 ? "tooLarge" : "upload");
          onSuccess(null);
+         setSelectedTagFilter(null);
+         onClearSearch?.();
          fetchDocuments();
-         message.success(`${file.name} téléversé avec succès!`);
+         message.success(t("Document téléversé", "Document uploaded", "تم رفع المستند"));
       } catch (err) {
          onError(err);
-         message.error(`Échec du téléversement de ${file.name}.`);
+         message.error(uploadErrorMessage(err instanceof TypeError ? "network" : err.message, t)
+            || uploadErrorMessage("upload", t));
       } finally {
-         setUploading(false);
+         setUploading((count) => count - 1);
       }
    };
 
    const handleDelete = (filename) => {
-      const email = getEmailFromToken();
-
       Modal.confirm({
-         title: "Are you sure you want to delete this document?",
-         content: `${filename} will be permanently deleted.`,
-         okText: "Yes, delete",
+         title: t("Supprimer ce document ?", "Delete this document?", "حذف هذا المستند؟"),
+         content: filename,
+         okText: t("Supprimer", "Delete", "حذف"),
          okType: "danger",
-         cancelText: "Cancel",
+         cancelText: t("Annuler", "Cancel", "إلغاء"),
          onOk: async () => {
             try {
-               await apiFetch(
-                  `/api/documents/${encodeURIComponent(
-                     filename
-                  )}?email=${encodeURIComponent(email)}`,
+               const response = await apiFetch(
+                  `/api/documents/${encodeURIComponent(filename)}`,
                   { method: "DELETE" }
                );
-               message.success("Document supprimé!");
+               if (!response?.ok && response?.status !== 404) throw new Error("Delete failed");
+               setFileList((previous) => previous.filter((file) => file.uid !== filename));
+               message.success(t("Document supprimé!", "Document deleted", "تم حذف المستند"));
                fetchDocuments();
             } catch {
-               message.error("Erreur lors de la suppression");
+               message.error(t("Erreur lors de la suppression", "Could not delete the document", "تعذر حذف المستند"));
             }
          },
       });
@@ -732,6 +709,10 @@ const GestionDocuments = ({ searchQuery = "" }) => {
 
    return (
       <div style={{ width: "100%" }}>
+         {loadFailed && <Alert type="error" showIcon
+            message={t("Impossible de charger les documents", "Could not load documents", "تعذر تحميل المستندات")}
+            action={<Button onClick={fetchDocuments}>{t("Réessayer", "Retry", "إعادة المحاولة")}</Button>} />}
+
          {/* Upload Area */}
          <Card
             style={{
@@ -747,9 +728,9 @@ const GestionDocuments = ({ searchQuery = "" }) => {
             <Dragger
                customRequest={handleCustomUpload}
                multiple
-               accept=".png,.jpg,.jpeg,.pdf"
+               accept={documentAccept}
                showUploadList={false}
-               disabled={uploading}
+               disabled={uploading > 0}
                style={{
                   background: "transparent",
                   border: "none",
@@ -792,8 +773,8 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                      }}
                   >
                      {uploading
-                        ? "Téléversement..."
-                        : "Déposez vos fichiers ici"}
+                        ? t("Téléversement...", "Uploading…", "جارٍ الرفع…")
+                        : t("Déposez vos fichiers ici", "Drop your files here", "أفلت ملفاتك هنا")}
                   </Title>
                   <Text
                      style={{
@@ -802,7 +783,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                         fontWeight: 500,
                      }}
                   >
-                     ou cliquez pour sélectionner des fichiers
+                     {t("ou cliquez pour sélectionner des fichiers", "or click to browse", "أو انقر لاختيار الملفات")}
                   </Text>
                   <div style={{ marginTop: "16px" }}>
                      <Text
@@ -811,7 +792,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                            fontSize: "14px",
                         }}
                      >
-                        Formats supportés: PDF, JPG, PNG
+                        {t("PDF, JPG, PNG ou TXT · 10 Mo max.", "PDF, JPG, PNG or TXT · 10 MB max.", "PDF أو JPG أو PNG أو TXT · الحد الأقصى 10 ميغابايت")}
                      </Text>
                   </div>
                </div>
@@ -839,10 +820,10 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                }}
             >
                <Text strong style={{ color: TEXT_DARK }}>
-                  Filtrer par étiquette:
+                  {t("Filtrer par étiquette:", "Filter by tag", "التصفية حسب الوسم")}
                </Text>
                <Select
-                  placeholder="Tous les documents"
+                  placeholder={t("Tous les documents", "All documents", "كل المستندات")}
                   allowClear
                   value={selectedTagFilter}
                   onChange={(value) =>
@@ -884,9 +865,9 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                }}
                size="large"
             >
-               <Select.Option value="latest">Récent</Select.Option>
-               <Select.Option value="alpha">Alphabétique</Select.Option>
-               <Select.Option value="type">Type de fichier</Select.Option>
+               <Select.Option value="latest">{t("Récent", "Recent", "الأحدث")}</Select.Option>
+               <Select.Option value="alpha">{t("Alphabétique", "Alphabetical", "أبجدي")}</Select.Option>
+               <Select.Option value="type">{t("Type de fichier", "File type", "نوع الملف")}</Select.Option>
             </Select>
          </div>
 
@@ -939,7 +920,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                      }}
                      onClick={() => handlePreview(file)}
                   >
-                     <img
+                     {file.thumbUrl ? <img
                         src={file.thumbUrl}
                         alt={file.name}
                         style={{
@@ -948,7 +929,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                            objectFit: "cover",
                            transition: "transform 0.3s ease",
                         }}
-                     />
+                     /> : <FileTextOutlined style={{ fontSize: 42, color: PRIMARY }} />}
 
                      {/* Overlay */}
                      <div
@@ -981,7 +962,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                               boxShadow: "0 4px 20px rgba(26,139,183,0.08)",
                            }}
                         >
-                           Preview
+                           {t("Aperçu", "Preview", "معاينة")}
                         </Button>
                      </div>
 
@@ -1023,7 +1004,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                               fontWeight: 500,
                            }}
                         >
-                           {file.uploadedAt.toLocaleDateString("fr-FR", {
+                           {file.uploadedAt.toLocaleDateString(language, {
                               year: "numeric",
                               month: "long",
                               day: "numeric",
@@ -1054,10 +1035,11 @@ const GestionDocuments = ({ searchQuery = "" }) => {
 
                      {/* Action Buttons */}
                      <Space wrap>
-                        <Tooltip title="Supprimer">
+                        <Tooltip title={t("Supprimer", "Delete", "حذف")}>
                            <Button
                               danger
                               icon={<DeleteOutlined />}
+                              aria-label={t("Supprimer", "Delete", "حذف")}
                               size="large"
                               style={{
                                  borderRadius: "12px",
@@ -1073,8 +1055,9 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                            />
                         </Tooltip>
 
-                        <Tooltip title="Analyser">
+                        <Tooltip title={file.analysed ? t("Voir l’analyse", "View analysis", "عرض التحليل") : t("Analyser", "Analyse", "تحليل")}>
                            <Button
+                              aria-label={file.analysed ? t("Voir l’analyse", "View analysis", "عرض التحليل") : t("Analyser", "Analyse", "تحليل")}
                               icon={<SearchOutlined />}
                               size="large"
                               style={{
@@ -1086,12 +1069,12 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                               }}
                               onClick={(e) => {
                                  e.stopPropagation();
-                                 handleAnalyse(file.uid);
+                                 onAnalyse(file.uid, !file.analysed);
                               }}
                            />
                         </Tooltip>
 
-                        <Tooltip title="Gérer les étiquettes">
+                        <Tooltip title={t("Gérer les étiquettes", "Manage tags", "إدارة الوسوم")}>
                            <Button
                               icon={<TagsOutlined />}
                               size="large"
@@ -1109,7 +1092,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                            />
                         </Tooltip>
 
-                        <Tooltip title="Traduire">
+                        <Tooltip title={t("Traduire", "Translate", "ترجمة")}>
                            <Button
                               icon={<GlobalOutlined />}
                               size="large"
@@ -1171,7 +1154,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                      fontWeight: 600,
                   }}
                >
-                  No documents
+                  {t("Aucun document", "No documents", "لا توجد مستندات")}
                </Title>
                <Text
                   style={{
@@ -1180,7 +1163,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                      fontWeight: 500,
                   }}
                >
-                  Start by uploading your first medical document
+                  {t("Commencez par téléverser un document médical", "Start by uploading a medical document", "ابدأ برفع مستند طبي")}
                </Text>
             </Card>
          )}
@@ -1214,7 +1197,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                      fontWeight: 600,
                   }}
                >
-                  No documents found
+                  {t("Aucun document correspondant", "No matching documents", "لا توجد مستندات مطابقة")}
                </Title>
                <Text
                   style={{
@@ -1223,7 +1206,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                      fontWeight: 500,
                   }}
                >
-                  Try different search terms
+                  {t("Essayez une autre recherche", "Try a different search", "جرّب بحثًا آخر")}
                </Text>
             </Card>
          )}
@@ -1265,7 +1248,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                   {isPdf ? (
                      <iframe
                         src={previewContent}
-                        title="Aperçu PDF"
+                        title={t("Aperçu PDF", "PDF preview", "معاينة PDF")}
                         width="100%"
                         height="600px"
                         style={{
@@ -1302,7 +1285,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                   <span
                      style={{ color: TEXT_DARK, fontWeight: 600, fontSize: 18 }}
                   >
-                     Traduction PDF - {currentFile?.name}
+                     {t("Traduction du PDF", "PDF translation", "ترجمة PDF")} · {currentFile?.name}
                   </span>
                </div>
             }
@@ -1312,7 +1295,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
             style={{ maxWidth: "1400px" }}
             footer={[
                <Button key="close" onClick={() => setTranslationOpen(false)}>
-                  Fermer
+                  {t("Fermer", "Close", "إغلاق")}
                </Button>,
                <Button
                   key="translate"
@@ -1326,7 +1309,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                      borderColor: SECONDARY,
                   }}
                >
-                  Traduire
+                  {t("Traduire", "Translate", "ترجمة")}
                </Button>,
             ]}
          >
@@ -1340,7 +1323,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                }}
             >
                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <Text strong>Langue source:</Text>
+                  <Text strong>{t("Langue source:", "Source language", "لغة المصدر")}</Text>
                   <Select
                      value={sourceLanguage}
                      onChange={setSourceLanguage}
@@ -1349,7 +1332,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                   >
                      {LANGUAGE_OPTIONS.map((lang) => (
                         <Select.Option key={lang.value} value={lang.value}>
-                           {lang.label}
+                           {lang.value === "auto" ? t("Détection automatique", "Auto-detect", "اكتشاف تلقائي") : languageNames.of(lang.value)}
                         </Select.Option>
                      ))}
                   </Select>
@@ -1358,7 +1341,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                <div style={{ fontSize: 20, color: SECONDARY }}>→</div>
 
                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <Text strong>Langue cible:</Text>
+                  <Text strong>{t("Langue cible:", "Target language", "اللغة المستهدفة")}</Text>
                   <Select
                      value={targetLanguage}
                      onChange={setTargetLanguage}
@@ -1374,7 +1357,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                               lang.value === "auto"
                            }
                         >
-                           {lang.label}
+                           {lang.value === "auto" ? t("Détection automatique", "Auto-detect", "اكتشاف تلقائي") : languageNames.of(lang.value)}
                         </Select.Option>
                      ))}
                   </Select>
@@ -1385,7 +1368,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                {/* Source Text */}
                <div style={{ flex: 1 }}>
                   <Title level={4} style={{ color: PRIMARY, marginBottom: 12 }}>
-                     📄 Texte original
+                     {t("📄 Texte original", "Original text", "النص الأصلي")}
                   </Title>
                   <div
                      style={{
@@ -1401,7 +1384,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                         lineHeight: 1.6,
                      }}
                   >
-                     {sourceText || "Extraction du texte..."}
+                     {sourceText || t("Extraction du texte...", "Extracting text…", "جارٍ استخراج النص…")}
                   </div>
                </div>
 
@@ -1411,7 +1394,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                      level={4}
                      style={{ color: SECONDARY, marginBottom: 12 }}
                   >
-                     🌐 Traduction{" "}
+                     {t("Traduction", "Translation", "الترجمة")}{" "}
                      {
                         LANGUAGE_OPTIONS.find((l) => l.value === targetLanguage)
                            ?.flag
@@ -1445,7 +1428,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                               }}
                            />
                            <div style={{ marginTop: 16, color: TEXT_MEDIUM }}>
-                              Traduction en cours...
+                              {t("Traduction en cours...", "Translating…", "جارٍ الترجمة…")}
                            </div>
                         </div>
                      ) : translationResult ? (
@@ -1458,7 +1441,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                               color: GREY,
                            }}
                         >
-                           Cliquez sur "Traduire" pour commencer
+                           {t("Cliquez sur \"Traduire\" pour commencer", "Select Translate to start", "اختر ترجمة للبدء")}
                         </div>
                      )}
                   </div>
@@ -1475,7 +1458,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                   <span
                      style={{ color: TEXT_DARK, fontWeight: 600, fontSize: 18 }}
                   >
-                     Gérer les étiquettes -{" "}
+                     {t("Gérer les étiquettes", "Manage tags", "إدارة الوسوم")} ·{" "}
                      {fileList.find((f) => f.uid === currentTagFile)?.name}
                   </span>
                </div>
@@ -1485,7 +1468,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
             width="600px"
             footer={[
                <Button key="close" onClick={() => setTagModalOpen(false)}>
-                  Fermer
+                  {t("Fermer", "Close", "إغلاق")}
                </Button>,
             ]}
          >
@@ -1506,11 +1489,11 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                      color: TEXT_DARK,
                   }}
                >
-                  ➕ Create new tag
+                  {t("➕ Create new tag", "Create a tag", "إنشاء وسم")}
                </Text>
                <div style={{ display: "flex", gap: 12 }}>
                   <Input
-                     placeholder="Nom de la nouvelle étiquette..."
+                     placeholder={t("Nom de l’étiquette", "Tag name", "اسم الوسم")}
                      value={newTagName}
                      onChange={(e) => setNewTagName(e.target.value)}
                      onPressEnter={addNewTag}
@@ -1526,7 +1509,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                      }
                      style={{ borderRadius: 8 }}
                   >
-                     Ajouter
+                     {t("Ajouter", "Add", "إضافة")}
                   </Button>
                </div>
             </div>
@@ -1541,7 +1524,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                      color: TEXT_DARK,
                   }}
                >
-                  🏷️ Étiquettes disponibles (cliquez pour assigner/retirer)
+                  {t("🏷️ Étiquettes disponibles (cliquez pour assigner/retirer)", "Available tags", "الوسوم المتاحة")}
                </Text>
                <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
                   {availableTags.map((tag) => {
@@ -1598,7 +1581,7 @@ const GestionDocuments = ({ searchQuery = "" }) => {
                         display: "block",
                      }}
                   >
-                     ✅ Tags assigned to this document:
+                     {t("✅ Tags assigned to this document:", "Assigned tags", "الوسوم المضافة")}
                   </Text>
                   <Space wrap>
                      {getDocumentTags(currentTagFile).map((tag) => (

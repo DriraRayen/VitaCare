@@ -1,0 +1,89 @@
+{
+  "description": "Synthetic evaluation benchmarks for VitaCare Masar pathway tests (No real patient data)",
+  "reports": [
+    {
+      "file": "report-1-recent-valid-glucose.txt",
+      "patientName": "Jean Dupont",
+      "date": "2026-11-10",
+      "expectedExtractions": [
+        {
+          "rawTestName": "Glycémie à jeun",
+          "canonicalCode": "FASTING_GLUCOSE",
+          "value": 1.10,
+          "unit": "g/L",
+          "convertedCanonicalValue": 110.0,
+          "canonicalUnit": "mg/dL",
+          "expectedStatusInDiabetesDiagnosis": "DONE_VALID"
+        },
+        {
+          "rawTestName": "Hémoglobine glyquée (HbA1c)",
+          "canonicalCode": "HBA1C",
+          "value": 5.8,
+          "unit": "%",
+          "expectedStatusInDiabetesDiagnosis": "DONE_VALID"
+        }
+      ]
+    },
+    {
+      "file": "report-2-mmol-variant.txt",
+      "patientName": "Alice Durand",
+      "date": "2026-11-05",
+      "expectedExtractions": [
+        {
+          "rawTestName": "Glycémie à jeun",
+          "canonicalCode": "FASTING_GLUCOSE",
+          "value": 7.2,
+          "unit": "mmol/L",
+          "convertedCanonicalValue": 129.6,
+          "canonicalUnit": "mg/dL",
+          "flagged": true
+        },
+        {
+          "rawTestName": "HbA1c (IFCC)",
+          "canonicalCode": "HBA1C",
+          "value": 53.0,
+          "unit": "mmol/mol",
+          "convertedCanonicalValue": 7.0,
+          "canonicalUnit": "%",
+          "flagged": true
+        }
+      ]
+    },
+    {
+      "file": "report-3-lipid-components.txt",
+      "patientName": "Sophie Martin",
+      "date": "2026-08-15",
+      "expectedExtractions": [
+        { "rawTestName": "Cholestérol total", "canonicalCode": "TOTAL_CHOL", "value": 2.10, "unit": "g/L" },
+        { "rawTestName": "HDL cholestérol", "canonicalCode": "HDL", "value": 0.55, "unit": "g/L" },
+        { "rawTestName": "Triglycérides", "canonicalCode": "TG", "value": 1.40, "unit": "g/L" }
+      ],
+      "expectedComponentsResolution": {
+        "canonicalCode": "LIPID_PANEL",
+        "expectedStatusInAnnualCheck": "DONE_VALID"
+      }
+    },
+    {
+      "file": "report-4-expired-creatinine.txt",
+      "patientName": "Pierre Lambert",
+      "date": "2025-05-10",
+      "expectedExtractions": [
+        { "rawTestName": "Créatinine", "canonicalCode": "CREATININE", "expectedStatus": "EXPIRED" },
+        { "rawTestName": "Débit de filtration glomérulaire", "canonicalCode": "EGFR", "flagged": true, "expectedStatus": "EXPIRED" }
+      ]
+    },
+    {
+      "file": "report-5-eye-report.txt",
+      "patientName": "Marc Lefebvre",
+      "date": "2026-06-20",
+      "expectedExtractions": [
+        {
+          "rawTestName": "Examen ophtalmologique / Fond d'œil",
+          "canonicalCode": "EYE_EXAM",
+          "type": "report",
+          "expectedStatus": "DONE_VALID"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+LABORATOIRE RÉGIONAL DE SANTÉ
+Bilan Rénal et Ionogramme
+Patient : Pierre Lambert
+Date du bilan : 2025-05-10
+
+PARAMÈTRES SANGUINS ET URINAIRES :
+- Créatinine : 12.0 mg/L
+- Débit de filtration glomérulaire (DFG - CKD-EPI) : 55 mL/min/1.73m2
+- Rapport albumine/créatinine urinaire : 38 mg/g
+
+Rapport archivé.

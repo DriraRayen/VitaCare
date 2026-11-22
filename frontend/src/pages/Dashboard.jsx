@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from "react";
 import GestionDocuments from "../components/Documents";
 import GestionProfile from "../components/GestionProfile";
+import AnalysisPage from "./AnalysisPage";
+import CareExpensesPage from "./CareJourneyPage";
+import DoctorCollaborationPage from "./DoctorCollaborationPage";
 import Sidebar from "../components/Sidebar/Sidebar";
 import { useSidebar } from "../hooks/useSidebar";
-import { COLORS, PAGE_TITLES, SIDER_ITEMS } from "../constants";
+import { COLORS, SIDER_ITEMS } from "../constants";
+import { languages, useLanguage } from "../utils/language";
+import { useSearchParams } from "react-router-dom";
 import { apiFetch, getEmailFromToken } from "../utils/api";
 import moment from "moment";
 
@@ -14,20 +19,21 @@ import {
    ConfigProvider,
    Card,
    Typography,
-   Avatar,
+   Button,
+   Modal,
+   Select,
+   Space,
    Dropdown,
    Input,
    Row,
    Col,
-   Menu,
 } from "antd";
 import {
    UserOutlined,
    SettingOutlined,
-   BellOutlined,
    SearchOutlined,
+   BellOutlined,
    FileTextOutlined,
-   BarChartOutlined,
 } from "@ant-design/icons";
 
 const { Content } = Layout;
@@ -37,8 +43,31 @@ const { Title, Text } = Typography;
 const { PRIMARY, BG_LIGHT, BG_CARD, SIDEBAR_BORDER, TEXT_DARK, TEXT_MEDIUM } =
    COLORS;
 
-function Dashboard() {
-   const { collapsed, setCollapsed, activePage, setActivePage } = useSidebar();
+function Dashboard({ setLanguage }) {
+   const { language, t } = useLanguage();
+   const { collapsed, setCollapsed } = useSidebar();
+   const [params, setParams] = useSearchParams();
+   const activePage = params.get("page") || "1";
+   const filename = activePage === "2" ? params.get("document") : null;
+   const [autoStart, setAutoStart] = useState(null);
+   const [settingsOpen, setSettingsOpen] = useState(false);
+   const setActivePage = (page) => {
+      setAutoStart(null);
+      setParams(page === "1" ? {} : { page });
+   };
+   const selectDocument = (document, execute, replace = false) => {
+      setAutoStart(execute ? { document, language } : null);
+      setParams(document ? { page: "2", document } : { page: "2" }, { replace });
+   };
+   const pageLabels = {
+      1: t("Tableau de bord", "Dashboard", "لوحة التحكم"),
+      2: t("Analyses", "Analysis", "التحليل"),
+      3: t("Consignes du médecin", "Doctor’s instructions", "تعليمات الطبيب"),
+      4: t("Connexions", "Connections", "الارتباطات"),
+      5: t("Dépenses de soins", "Care expenses", "نفقات الرعاية"),
+      9: t("Documents", "Documents", "المستندات"),
+      10: t("Profil", "Profile", "الملف الشخصي"),
+   };
    const [searchQuery, setSearchQuery] = useState("");
    const [userData, setUserData] = useState(null);
    const [loading, setLoading] = useState(true);
@@ -55,7 +84,7 @@ function Dashboard() {
 
             // Fetch user profile
             const profileRes = await apiFetch(
-               `/api/profile/user/by-email/${email}`
+               `/api/profile/user/by-email/${encodeURIComponent(email)}`
             );
             if (profileRes.ok) {
                const user = await profileRes.json();
@@ -88,39 +117,22 @@ function Dashboard() {
       fetchDashboardData();
    }, []);
 
-   // Clear search when navigating away from Documents page
-   useEffect(() => {
-      if (activePage !== "9" && searchQuery) {
-         // Optional: clear search when leaving documents
-         // setSearchQuery("");
-      }
-   }, [activePage, searchQuery]);
-
-   const userMenu = (
-      <Menu
-         style={{ padding: "8px" }}
-         onClick={(e) => {
-            if (e.key === "10") {
-               setActivePage("10");
-            }
-            if (e.key === "logout") {
-               localStorage.removeItem("jwt");
-               window.location.href = "/login";
-            }
-         }}
-      >
-         <Menu.Item key="10" icon={<UserOutlined />}>
-            Mon Profil
-         </Menu.Item>
-         <Menu.Item key="settings" icon={<SettingOutlined />}>
-            Paramètres
-         </Menu.Item>
-         <Menu.Divider />
-         <Menu.Item key="logout" style={{ color: "#ff4d4f" }}>
-            Déconnexion
-         </Menu.Item>
-      </Menu>
-   );
+   const userMenu = {
+      items: [
+         { key: "10", label: t("Mon profil", "My profile", "ملفي الشخصي"), icon: <UserOutlined /> },
+         { key: "settings", label: t("Paramètres", "Settings", "الإعدادات"), icon: <SettingOutlined /> },
+         { type: "divider" },
+         { key: "logout", label: t("Déconnexion", "Sign out", "تسجيل الخروج"), danger: true },
+      ],
+      onClick: ({ key }) => {
+         if (key === "10") setActivePage("10");
+         if (key === "settings") setSettingsOpen(true);
+         if (key === "logout") {
+            localStorage.removeItem("jwt");
+            window.location.href = "/login";
+         }
+      },
+   };
 
    return (
       <ConfigProvider
@@ -160,7 +172,7 @@ function Dashboard() {
                setCollapsed={setCollapsed}
                activePage={activePage}
                setActivePage={setActivePage}
-               siderItems={SIDER_ITEMS}
+               siderItems={SIDER_ITEMS.map((item) => ({ ...item, label: pageLabels[item.key] }))}
             />
 
             <Layout style={{ backgroundColor: BG_LIGHT }}>
@@ -188,7 +200,7 @@ function Dashboard() {
                            letterSpacing: "-0.5px",
                         }}
                      >
-                        {PAGE_TITLES[activePage]?.title || ""}
+                        {pageLabels[activePage] || ""}
                      </Title>
                   </div>
 
@@ -196,7 +208,7 @@ function Dashboard() {
                      style={{ display: "flex", alignItems: "center", gap: 16 }}
                   >
                      <Input
-                        placeholder="Rechercher des documents... (Appuyez sur Entrée)"
+                        placeholder={t("Rechercher des documents", "Search documents", "البحث في المستندات")}
                         prefix={
                            <SearchOutlined style={{ color: TEXT_MEDIUM }} />
                         }
@@ -221,16 +233,9 @@ function Dashboard() {
                         size="large"
                         allowClear
                      />
-                     <Dropdown overlay={userMenu} trigger={["click"]}>
-                        <Avatar
-                           icon={<UserOutlined />}
-                           style={{
-                              backgroundColor: PRIMARY,
-                              cursor: "pointer",
-                              fontSize: 18,
-                           }}
-                           size="large"
-                        />
+                     <Dropdown menu={userMenu} trigger={["click"]}>
+                        <Button type="primary" shape="circle" icon={<UserOutlined />} size="large"
+                           aria-label={t("Menu du profil", "Profile menu", "قائمة الملف الشخصي")} />
                      </Dropdown>
                   </div>
                </div>
@@ -272,10 +277,10 @@ function Dashboard() {
                                           fontWeight: 700,
                                        }}
                                     >
-                                       Bienvenue{" "}
+                                       {t("Bienvenue", "Welcome", "مرحبًا")}{" "}
                                        {userData?.firstName
                                           ? `${userData.firstName}`
-                                          : "sur VitaCare"}
+                                          : t("sur VitaCare", "to VitaCare", "بك في VitaCare")}
                                     </Title>
                                     <Text
                                        style={{
@@ -284,7 +289,7 @@ function Dashboard() {
                                           fontWeight: 500,
                                        }}
                                     >
-                                       Gérez votre santé en toute simplicité
+                                       {t("Gérez votre santé en toute simplicité", "Manage your health records", "إدارة سجلاتك الصحية")}
                                     </Text>
                                  </div>
                                  <div
@@ -353,7 +358,7 @@ function Dashboard() {
                                           marginBottom: 4,
                                        }}
                                     >
-                                       documents
+                                       {t("documents", "documents", "المستندات")}
                                     </Text>
                                     <div
                                        style={{
@@ -433,7 +438,7 @@ function Dashboard() {
                                           marginBottom: 4,
                                        }}
                                     >
-                                       étiquettes
+                                       {t("étiquettes", "tags", "الوسوم")}
                                     </Text>
                                     <div
                                        style={{
@@ -459,7 +464,7 @@ function Dashboard() {
                                              fontWeight: 500,
                                           }}
                                        >
-                                          créées
+                                          {t("créées", "created", "تم إنشاؤها")}
                                        </Text>
                                     </div>
                                  </div>
@@ -513,7 +518,7 @@ function Dashboard() {
                                           marginBottom: 4,
                                        }}
                                     >
-                                       alertes médicales
+                                       {t("alertes médicales", "medical alerts", "التنبيهات الطبية")}
                                     </Text>
                                     <div
                                        style={{
@@ -541,7 +546,7 @@ function Dashboard() {
                                                      ","
                                                   ).length
                                                 : 0) +
-                                             (userData?.médicaments &&
+                                             (userData?.medications &&
                                              userData.medications.trim()
                                                 ? userData.medications.split(
                                                      ","
@@ -555,7 +560,7 @@ function Dashboard() {
                                              fontWeight: 500,
                                           }}
                                        >
-                                          actives
+                                          {t("actives", "active", "نشطة")}
                                        </Text>
                                     </div>
                                  </div>
@@ -585,7 +590,7 @@ function Dashboard() {
                                        fontWeight: 600,
                                     }}
                                  >
-                                    informations personnelles
+                                    {t("informations personnelles", "Personal information", "المعلومات الشخصية")}
                                  </Title>
 
                                  <Row gutter={[24, 24]}>
@@ -607,7 +612,7 @@ function Dashboard() {
                                                 color: TEXT_DARK,
                                              }}
                                           >
-                                             informations démographiques
+                                             {t("informations démographiques", "Personal details", "البيانات الشخصية")}
                                           </Title>
                                           <div
                                              style={{
@@ -626,7 +631,7 @@ function Dashboard() {
                                                          marginBottom: 4,
                                                       }}
                                                    >
-                                                      âge
+                                                      {t("âge", "Age", "العمر")}
                                                    </Text>
                                                    <Text
                                                       strong
@@ -641,7 +646,7 @@ function Dashboard() {
                                                          ),
                                                          "years"
                                                       )}{" "}
-                                                      ans
+                                                      {t("ans", "years", "سنة")}
                                                    </Text>
                                                 </div>
                                              )}
@@ -655,7 +660,7 @@ function Dashboard() {
                                                          marginBottom: 4,
                                                       }}
                                                    >
-                                                      genre
+                                                      {t("genre", "Gender", "الجنس")}
                                                    </Text>
                                                    <Text
                                                       strong
@@ -666,8 +671,8 @@ function Dashboard() {
                                                    >
                                                       {userData.gender ===
                                                       "MALE"
-                                                         ? "homme"
-                                                         : "femme"}
+                                                         ? t("homme", "Male", "ذكر")
+                                                         : t("femme", "Female", "أنثى")}
                                                    </Text>
                                                 </div>
                                              )}
@@ -681,7 +686,7 @@ function Dashboard() {
                                                          marginBottom: 4,
                                                       }}
                                                    >
-                                                      téléphone
+                                                      {t("téléphone", "Phone", "الهاتف")}
                                                    </Text>
                                                    <Text
                                                       strong
@@ -704,7 +709,7 @@ function Dashboard() {
                                                          marginBottom: 4,
                                                       }}
                                                    >
-                                                      groupe sanguin
+                                                      {t("groupe sanguin", "Blood type", "فصيلة الدم")}
                                                    </Text>
                                                    <Text
                                                       strong
@@ -739,7 +744,7 @@ function Dashboard() {
                                                 color: TEXT_DARK,
                                              }}
                                           >
-                                             métriques de santé
+                                             {t("métriques de santé", "Health metrics", "المؤشرات الصحية")}
                                           </Title>
                                           <div
                                              style={{
@@ -759,7 +764,7 @@ function Dashboard() {
                                                             marginBottom: 4,
                                                          }}
                                                       >
-                                                         taille
+                                                         {t("taille", "Height", "الطول")}
                                                       </Text>
                                                       <Text
                                                          strong
@@ -783,7 +788,7 @@ function Dashboard() {
                                                             marginBottom: 4,
                                                          }}
                                                       >
-                                                         poids
+                                                         {t("poids", "Weight", "الوزن")}
                                                       </Text>
                                                       <Text
                                                          strong
@@ -809,7 +814,7 @@ function Dashboard() {
                                                             marginBottom: 4,
                                                          }}
                                                       >
-                                                         imc
+                                                         {t("imc", "BMI", "مؤشر كتلة الجسم")}
                                                       </Text>
                                                       <Text
                                                          strong
@@ -859,12 +864,12 @@ function Dashboard() {
                                                                   2
                                                                );
                                                             if (bmi < 18.5)
-                                                               return "insuffisance pondérale";
+                                                               return t("insuffisance pondérale", "underweight", "نقص الوزن");
                                                             if (bmi < 25)
-                                                               return "normal";
+                                                               return t("normal", "normal", "طبيعي");
                                                             if (bmi < 30)
-                                                               return "surpoids";
-                                                            return "obésité";
+                                                               return t("surpoids", "overweight", "زيادة الوزن");
+                                                            return t("obésité", "obesity", "السمنة");
                                                          })()}
                                                       </Text>
                                                    </div>
@@ -891,7 +896,7 @@ function Dashboard() {
                                                 color: TEXT_DARK,
                                              }}
                                           >
-                                             alertes médicales
+                                             {t("alertes médicales", "medical alerts", "التنبيهات الطبية")}
                                           </Title>
                                           <div
                                              style={{
@@ -911,7 +916,7 @@ function Dashboard() {
                                                             marginBottom: 4,
                                                          }}
                                                       >
-                                                         allergies
+                                                         {t("allergies", "Allergies", "الحساسية")}
                                                       </Text>
                                                       <Text
                                                          strong
@@ -941,7 +946,7 @@ function Dashboard() {
                                                             marginBottom: 4,
                                                          }}
                                                       >
-                                                         maladies chroniques
+                                                         {t("maladies chroniques", "Chronic conditions", "الأمراض المزمنة")}
                                                       </Text>
                                                       <Text
                                                          strong
@@ -972,7 +977,7 @@ function Dashboard() {
                                                             marginBottom: 4,
                                                          }}
                                                       >
-                                                         médicaments
+                                                         {t("médicaments", "Medication", "الأدوية")}
                                                       </Text>
                                                       <Text
                                                          strong
@@ -1000,41 +1005,27 @@ function Dashboard() {
                         )}
                      </Row>
                   )}
-                  {activePage === "2" && (
-                     <Card
-                        style={{
-                           borderRadius: 16,
-                           border: "none",
-                           boxShadow: "0 4px 24px rgba(26,139,183,0.08)",
-                           textAlign: "center",
-                           padding: "64px 32px",
-                        }}
-                     >
-                        <BarChartOutlined
-                           style={{
-                              fontSize: 80,
-                              color: PRIMARY,
-                              marginBottom: 24,
-                           }}
-                        />
-                        <Title
-                           level={2}
-                           style={{ color: TEXT_DARK, marginBottom: 16 }}
-                        >
-                           analyses
-                        </Title>
-                        <Text style={{ fontSize: 18, color: TEXT_MEDIUM }}>
-                           fonctionnalité à venir
-                        </Text>
-                     </Card>
-                  )}
+                  {activePage === "2" && <AnalysisPage key={filename || "text"} filename={filename}
+                     autoStart={filename && autoStart?.document === filename ? autoStart.language : null}
+                     onSelect={(document, execute = false) => selectDocument(document, execute, true)} />}
+                  {(activePage === "3" || activePage === "4") && <DoctorCollaborationPage key={activePage}
+                     showConnections={activePage === "4"} openConnections={() => setActivePage("4")} />}
+                  {activePage === "5" && <CareExpensesPage />}
                   {activePage === "9" && (
-                     <GestionDocuments searchQuery={searchQuery} />
+                     <GestionDocuments searchQuery={searchQuery} onAnalyse={selectDocument} onClearSearch={() => setSearchQuery("")} />
                   )}
                   {activePage === "10" && <GestionProfile />}
                </Content>
             </Layout>
          </Layout>
+         <Modal title={t("Paramètres", "Settings", "الإعدادات")} open={settingsOpen}
+            footer={null} onCancel={() => setSettingsOpen(false)}>
+            <Space direction="vertical" style={{ width: "100%" }}>
+               <label htmlFor="app-language">{t("Langue", "Language", "اللغة")}</label>
+               <Select id="app-language" style={{ width: "100%" }} value={language} options={languages}
+                  onChange={setLanguage} />
+            </Space>
+         </Modal>
       </ConfigProvider>
    );
 }

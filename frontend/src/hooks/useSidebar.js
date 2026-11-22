@@ -5,15 +5,12 @@ import { useState } from "react";
  */
 export const useSidebar = () => {
    const [collapsed, setCollapsed] = useState(false);
-   const [activePage, setActivePage] = useState("1");
 
    const toggleSidebar = () => setCollapsed((prev) => !prev);
 
    return {
       collapsed,
       setCollapsed,
-      activePage,
-      setActivePage,
       toggleSidebar,
    };
 };
